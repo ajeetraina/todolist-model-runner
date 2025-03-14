@@ -1,0 +1,97 @@
+services:
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - 3000:3000
+    stdin_open: true
+    volumes:
+      - ./frontend:/usr/src/app
+      - /usr/src/app/node_modules
+    container_name: frontend
+    restart: always
+    networks:
+      - react-express
+    depends_on:
+      - backend
+
+  backend:
+    container_name: backend
+    restart: always
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend:/usr/src/app
+      - /usr/src/app/node_modules
+    environment:
+      MODEL_RUNNER_URL: ${MODEL_RUNNER_URL}
+      MODEL_NAME: ${MODEL_NAME}
+      API_KEY: ${API_KEY}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+    depends_on:
+      - postgres
+      - model-runner
+    networks:
+      - express-postgres
+      - react-express
+      - backend-modelrunner
+    expose: 
+      - 8080
+
+  postgres:
+    container_name: postgres
+    restart: always
+    build:
+      context: .
+      dockerfile: postgres/Dockerfile
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+    volumes:
+      - postgresdata:/var/lib/postgresql/data
+    networks:
+      - express-postgres
+    expose:
+      - 5432
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8082:8080
+    networks:
+      - express-postgres
+
+  model-runner:
+    image: ghcr.io/modelrun/modelrun:latest
+    container_name: model-runner
+    restart: always
+    ports:
+      - 11434:11434
+    volumes:
+      - ./llm:/etc/modelrun
+      - modelrundata:/var/lib/modelrun
+    networks:
+      - backend-modelrunner
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  react-express:
+  express-postgres:
+  backend-modelrunner:
+
+volumes:
+  postgresdata:
+  modelrundata:

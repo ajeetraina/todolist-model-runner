@@ -1,0 +1,8 @@
+name: llama3
+type: llama-cpp
+parameters:
+  model: llama3:8b-instruct-q4_0
+  context_size: 4096
+  seed: 42
+  temperature: 0.7
+  top_p: 0.95
